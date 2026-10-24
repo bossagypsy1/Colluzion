@@ -73,6 +73,10 @@ npm run build       # typecheck + production build to dist/
 
 CI (`.github/workflows/ci.yml`) runs typecheck, tests and build on every push. Pushes to `main` (or a manual run) deploy to GitHub Pages so the build can be opened on the phone.
 
+## Git workflow
+
+- **Commit and push directly to `main`.** This is the owner's standing instruction: no feature branches or pull requests unless asked. Every push to `main` deploys to GitHub Pages, so only push work that typechecks, passes tests and builds.
+
 ## Conventions
 
 - Strict TypeScript. Only erasable syntax: no `enum`, `namespace` or constructor parameter properties, so Node can run the tests without a build step.
