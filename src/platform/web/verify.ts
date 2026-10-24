@@ -13,7 +13,7 @@ export interface VerifyReport {
 export interface VerifyExpectations {
   durationSec: number;
   fps: number;
-  /** Run the beat-marker A/V sync measurement (only valid with built-in test media at segment 0/0). */
+  /** Run the beat-marker A/V sync measurement (only valid with built-in test media, beat-aligned range and clip). */
   testMediaSync: boolean;
 }
 

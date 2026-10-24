@@ -9,18 +9,20 @@ src/
     analysis/               Biquad filters, band RMS analysis, conditioning, binary format
     effects/definitions.ts  Effect parameter specs + GLSL source
     routing/routing.ts      Signal → parameter mapping (combination rules documented in file)
-    render/frameState.ts    time → FrameState: the single deterministic render function
+    render/frameState.ts    music time → FrameState: the single deterministic render function
+    project/migrate.ts      Project format migrations (v1 → v2)
     testMedia.ts            Synthetic test beat / marker timing for sync tests
   platform/web/             Browser adapters (replaceable by native Kotlin equivalents)
     media.ts                File decode/probe, analysis worker launcher
     analysisWorker.ts       Runs core analysis off the main thread
+    player.ts               LivePlayer: music-clock transport, video sync, rAF render loop
     renderer.ts             WebGL2 renderer (one effect pass in Phase 1)
     frameSources.ts         Exact-timestamp frame providers for export
     exporter.ts             VideoExporter interface + WebCodecs/mediabunny MP4 exporter
     verify.ts               Re-opens the exported MP4 and measures it
     capabilities.ts         Encoder/decoder capability probe
     testPattern.ts          Procedural test video
-  app/                      Phase 1 UI (plain DOM, no framework)
+  app/                      UI (plain DOM): main, effect controls, envelope view, export panel
 tests/                      Unit tests for core/ (node:test, no browser)
 docs/                       Architecture + acceptance tests
 .github/workflows/ci.yml    Typecheck, test, build, deploy to GitHub Pages
@@ -58,13 +60,23 @@ music file ─decodeAudioData─► AudioBuffer ──worker──► band RMS @
                                    │                         ▼ threshold, gain) – cheap, re-run on slider change
                                    │                   ControlSignal[]
                                    │                         │
-for frame i (t = i / fps):         │                         ▼
+for frame i (t = range.start + i / fps):         │                         ▼
    FrameState = computeFrameState(project, signals, t)   ← pure, deterministic
    video frame @ FrameState.videoTime ─ mediabunny CanvasSink (WebCodecs decode, rotate, cover-fit)
    ─► WebGL2 texture ─► effect shader (u_time = music time, p_* = routed params) ─► OffscreenCanvas
    ─► CanvasSource.add(t, 1/fps) ─► VideoEncoder (H.264)
-   audio slice [musicStart + …] fed ~1 s ahead ─► AudioBufferSource ─► AudioEncoder (AAC)
+   audio slice [range.start + …] fed ~1 s ahead ─► AudioBufferSource ─► AudioEncoder (AAC)
                                      └────────────► Mp4OutputFormat (fastStart) ─► Blob ─► verify ─► download/share
 ```
 
-The preview runs the same pipeline in real time, with the `AudioContext` clock as master: `t = elapsed − outputLatency`. The `<video>` element is re-seeked whenever it drifts more than 150 ms.
+## Live preview (primary workflow)
+
+```
+requestAnimationFrame (≤ 60 fps)
+  t = music time from AudioContext.getOutputTimestamp()  (what is being heard now)  − user A/V offset
+  FrameState = computeFrameState(project, signals, t)       ← the same call export makes
+  <video> follows t: |drift| > 250 ms → seek; otherwise playbackRate = 1 − drift (0.85–1.15)
+  new decoded frame? (requestVideoFrameCallback) → texImage2D → effect shader → canvas (preview resolution)
+```
+
+Nothing accumulates between frames. Seeking, pausing, dropped frames and control changes all take effect on the next frame. Control edits change project data directly, and band conditioning (attack/release/gain/threshold) is recomputed in about a millisecond without re-analysing the audio.

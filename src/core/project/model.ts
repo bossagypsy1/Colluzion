@@ -3,7 +3,7 @@
 //
 // Bump PROJECT_FORMAT_VERSION whenever the shape changes and add a migration.
 
-export const PROJECT_FORMAT_VERSION = 1;
+export const PROJECT_FORMAT_VERSION = 2;
 
 /** Identifier of a control signal produced by analysis, e.g. 'bass'. */
 export type SignalId = string;
@@ -64,13 +64,21 @@ export interface EffectInstance {
   params: Record<string, number>;
 }
 
-/** Phase 1: one music segment mapped onto one video segment. */
-export interface Segment {
-  /** Start of the segment in the music track, seconds. */
-  musicStart: number;
-  /** Start of the segment in the video clip, seconds. */
-  videoStart: number;
-  /** Segment length in seconds. */
+/**
+ * Places the single video clip on the music timeline: the clip's in-point is shown
+ * at music time `syncMusicTime`, and the clip loops from the in-point to its end.
+ */
+export interface ClipPlacement {
+  /** In-point within the video file, seconds. */
+  inPoint: number;
+  /** Music time at which the in-point is shown, seconds. */
+  syncMusicTime: number;
+}
+
+/** The part of the music timeline that MP4 export renders. */
+export interface ExportRange {
+  /** Music time of the first exported frame, seconds. */
+  start: number;
   duration: number;
 }
 
@@ -99,7 +107,8 @@ export interface Project {
   };
   effects: EffectInstance[];
   routing: RoutingConnection[];
-  segment: Segment;
+  clip: ClipPlacement;
+  exportRange: ExportRange;
   export: ExportSettings;
   // Timeline sections and automation curves arrive in Phase 5 (with a format migration).
 }
@@ -133,15 +142,16 @@ export function createDefaultProject(now: Date = new Date()): Project {
     ],
     routing: [
       {
-        id: 'r1', enabled: true, source: 'bass', effectId: 'fx1', param: 'zoom',
+        id: 'fx1:zoom', enabled: true, source: 'bass', effectId: 'fx1', param: 'zoom',
         gain: 0.35, offset: 0, invert: false, threshold: 0, curve: 'linear', strength: 1,
       },
       {
-        id: 'r2', enabled: true, source: 'bass', effectId: 'fx1', param: 'displaceX',
+        id: 'fx1:displaceX', enabled: true, source: 'bass', effectId: 'fx1', param: 'displaceX',
         gain: 0.06, offset: 0, invert: false, threshold: 0.3, curve: 'square', strength: 1,
       },
     ],
-    segment: { musicStart: 0, videoStart: 0, duration: 10 },
+    clip: { inPoint: 0, syncMusicTime: 0 },
+    exportRange: { start: 0, duration: 10 },
     export: { width: 640, height: 360, fps: 30, allowOpusFallback: false },
   };
 }

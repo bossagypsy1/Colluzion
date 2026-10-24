@@ -9,55 +9,90 @@
     <title>Colluzion</title>
   </head>
   <body>
-    <header>
-      <strong>Colluzion</strong> <span class="muted">Phase 1 proof of concept · <span id="build"></span></span>
-    </header>
-
-    <section id="preview-wrap">
-      <canvas id="preview" width="640" height="360"></canvas>
-      <div class="row">
-        <button id="play" class="big" disabled>Play</button>
-        <span id="time" class="mono">0.00 / 0.00</span>
+    <section id="stage">
+      <div id="screen">
+        <canvas id="preview" width="640" height="360"></canvas>
+        <!-- Kept in the DOM (not display:none) so mobile Chrome keeps decoding it. -->
+        <video id="source-video" muted playsinline preload="auto"></video>
+        <div id="empty-hint">Load music + video below, or tap “Test media”.</div>
       </div>
-      <input id="seek" type="range" min="0" max="10" step="0.01" value="0" disabled />
-    </section>
-
-    <section>
-      <h2>1 · Media</h2>
-      <label class="file big">Choose music<input id="audio-file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" /></label>
-      <label class="file big">Choose video<input id="video-file" type="file" accept="video/*" /></label>
-      <button id="test-media" class="big secondary">Use built-in test media</button>
-      <p id="audio-info" class="muted">No music loaded.</p>
-      <p id="video-info" class="muted">No video loaded.</p>
-    </section>
-
-    <section>
-      <h2>2 · Segment</h2>
-      <div class="grid">
-        <label>Music start (s)<input id="music-start" type="number" min="0" step="0.1" value="0" inputmode="decimal" /></label>
-        <label>Video start (s)<input id="video-start" type="number" min="0" step="0.1" value="0" inputmode="decimal" /></label>
-        <label>Length (s)<input id="duration" type="number" min="1" max="60" step="1" value="10" inputmode="decimal" /></label>
+      <input id="seek" type="range" min="0" max="1" step="0.001" value="0" disabled aria-label="Seek" />
+      <div class="transport">
+        <button id="back5" class="icon" disabled aria-label="Back 5 seconds">−5s</button>
+        <button id="frame-back" class="icon" disabled aria-label="Previous frame">◀︎</button>
+        <button id="play" class="play" disabled>Play</button>
+        <button id="frame-fwd" class="icon" disabled aria-label="Next frame">▶︎</button>
+        <button id="fwd5" class="icon" disabled aria-label="Forward 5 seconds">+5s</button>
       </div>
+      <div class="status-row">
+        <span id="time" class="mono">0:00.00 / 0:00.00</span>
+        <label class="inline"><input id="loop" type="checkbox" /> Loop export range</label>
+      </div>
+      <div id="meters">
+        <div class="meter"><span>B</span><div><i id="m-bass"></i></div><b id="v-bass">0.00</b></div>
+        <div class="meter"><span>M</span><div><i id="m-mid"></i></div><b id="v-mid">0.00</b></div>
+        <div class="meter"><span>T</span><div><i id="m-treble"></i></div><b id="v-treble">0.00</b></div>
+      </div>
+      <div id="stats" class="muted mono"></div>
     </section>
 
     <section>
-      <h2>3 · Bass envelope</h2>
-      <p id="analysis-info" class="muted">Load music to analyse.</p>
+      <h2>Effect · <span id="fx-name"></span></h2>
+      <p class="muted">Each parameter = base value + (band × amount). Adjust while playing or paused.</p>
+      <div id="params"></div>
+    </section>
+
+    <section>
+      <h2>Audio bands</h2>
       <canvas id="envelope" height="120"></canvas>
+      <div class="tabs" id="band-tabs"></div>
       <label>Attack <span id="attack-val"></span><input id="attack" type="range" min="0" max="100" step="1" /></label>
       <label>Release <span id="release-val"></span><input id="release" type="range" min="10" max="1000" step="10" /></label>
       <label>Gain <span id="gain-val"></span><input id="gain" type="range" min="0.1" max="4" step="0.05" /></label>
       <label>Threshold <span id="threshold-val"></span><input id="threshold" type="range" min="0" max="0.9" step="0.01" /></label>
+      <p id="analysis-info" class="muted">Load music to analyse.</p>
     </section>
 
     <section>
-      <h2>4 · Bass → effect</h2>
-      <label>Bass → zoom amount <span id="zoom-val"></span><input id="zoom-amt" type="range" min="0" max="1" step="0.01" /></label>
-      <label>Bass → horizontal displacement <span id="disp-val"></span><input id="disp-amt" type="range" min="0" max="0.3" step="0.005" /></label>
+      <h2>Media</h2>
+      <label class="file">Music<input id="audio-file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" /></label>
+      <label class="file">Video<input id="video-file" type="file" accept="video/*" /></label>
+      <button id="test-media" class="secondary">Test media</button>
+      <p id="audio-info" class="muted">No music loaded.</p>
+      <p id="video-info" class="muted">No video loaded.</p>
+      <div class="grid">
+        <label>Video in-point (s)<input id="in-point" type="number" min="0" step="0.1" value="0" inputmode="decimal" /></label>
+        <label>…shown at music time (s)<input id="sync-time" type="number" min="0" step="0.1" value="0" inputmode="decimal" /></label>
+      </div>
+      <button id="sync-here" class="secondary" disabled>Start video at playhead</button>
     </section>
 
     <section>
-      <h2>5 · Export MP4</h2>
+      <h2>Preview</h2>
+      <div class="grid">
+        <label>Preview resolution
+          <select id="preview-res">
+            <option value="426x240">426 × 240</option>
+            <option value="640x360" selected>640 × 360</option>
+            <option value="960x540">960 × 540</option>
+            <option value="1280x720">1280 × 720</option>
+          </select>
+        </label>
+      </div>
+      <label>Visual delay (A/V offset) <span id="offset-val"></span>
+        <input id="av-offset" type="range" min="-300" max="300" step="5" value="0" />
+      </label>
+      <p class="muted">Increase if visuals run ahead of what you hear (e.g. Bluetooth headphones).</p>
+    </section>
+
+    <section>
+      <h2>Export MP4</h2>
+      <p class="muted">Renders offline, frame by frame, with the same effects and routing as the live preview.</p>
+      <div class="grid">
+        <label>Start (s)<input id="range-start" type="number" min="0" step="0.1" value="0" inputmode="decimal" /></label>
+        <label>Length (s)<input id="range-length" type="number" min="1" step="1" value="10" inputmode="decimal" /></label>
+      </div>
+      <button id="range-here" class="secondary" disabled>Start export at playhead</button>
       <div class="grid">
         <label>Resolution
           <select id="resolution">
@@ -75,8 +110,8 @@
       </div>
       <label class="check"><input id="opus-fallback" type="checkbox" /> Allow Opus audio if AAC is unavailable</label>
       <div class="row">
-        <button id="export" class="big" disabled>Export MP4</button>
-        <button id="cancel" class="big secondary" hidden>Cancel</button>
+        <button id="export" disabled>Export MP4</button>
+        <button id="cancel" class="secondary" hidden>Cancel</button>
       </div>
       <progress id="progress" max="1" value="0" hidden></progress>
       <p id="export-status" class="muted"></p>
@@ -84,20 +119,20 @@
       <div id="result" hidden>
         <video id="result-video" controls playsinline></video>
         <div class="row">
-          <a id="download" class="button big">Download MP4</a>
-          <button id="share" class="big secondary" hidden>Share / save…</button>
+          <a id="download" class="button">Download MP4</a>
+          <button id="share" class="secondary" hidden>Share / save…</button>
         </div>
       </div>
     </section>
 
     <section>
       <h2>Device check</h2>
-      <button id="probe" class="big secondary">Check encoders on this device</button>
+      <button id="probe" class="secondary">Check encoders on this device</button>
       <pre id="caps" hidden></pre>
     </section>
 
     <section>
-      <h2>Log</h2>
+      <h2>Log <span class="muted" id="build"></span></h2>
       <pre id="log"></pre>
     </section>
 

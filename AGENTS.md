@@ -17,6 +17,8 @@ You are the lead architect and developer of **Colluzion**, a mobile-first, audio
 
 Analysis is kept separate from visual control and rendering, so one analysed track can be reused across many visual configurations.
 
+**Primary workflow: a real-time, interactive editor (a live visual instrument, in the spirit of TouchDesigner).** The user plays the song and sees effects react live. Every control can be changed during playback, or while paused on a frame, with immediate feedback. MP4 export is a separate final step that must reproduce the preview exactly. Never make the user export just to see an effect. Real-time preview takes priority over new export features, and export features that already work must keep working.
+
 ## Target & constraints
 
 - **Primary device:** Samsung Galaxy S21, Android, Chrome, touch only.
@@ -34,12 +36,15 @@ The engines are separate, with clean interfaces between them:
 | B. Visual effects | `src/core/effects/` (specs + GLSL) + `src/platform/web/renderer.ts` |
 | C. Signal routing | `src/core/routing/` |
 | D. Timeline & automation | *Phase 5:* `src/core/timeline/` |
+| Live preview | `src/platform/web/player.ts` (`LivePlayer`: music clock → `computeFrameState` → WebGL2, every rAF) |
 | E. Render & export | `src/core/render/frameState.ts` + `src/platform/web/exporter.ts` (`VideoExporter` interface; replaceable) |
 | F. Persistence | `src/core/project/model.ts` (versioned). IndexedDB/import/export in Phase 6 |
 
 Rules:
 - Dependency direction: `app → platform → core`. `core` has no DOM, WebGL or Web Audio.
-- **Determinism:** visuals are a pure function of the absolute media timestamp (`computeFrameState`). Never use wall-clock time for automation or effects. Preview and export call the same function.
+- **Determinism:** visuals are a pure function of the absolute music time (`computeFrameState`). Never accumulate state across frames, and never use wall-clock time for automation or effects. Preview and export call the same function with the same project, signals and (later) automation.
+- **Master clock:** the music playback position from the `AudioContext`, corrected for output latency, plus a user A/V offset. The `<video>` element follows it: small drift is corrected by nudging the playback rate, large drift by seeking. Preview renders with `requestAnimationFrame`, capped at 60 fps, and preview resolution is set separately from export resolution.
+- **Timeline model:** the video clip is placed on the music timeline by `clip` (in-point plus the music time where it's shown), and loops. `exportRange` only selects what gets exported.
 - Effects are never hard-wired to bands. Any signal can drive any compatible numeric parameter through routing. Several connections combine **additively**, then clamp to the parameter's range (documented in `routing.ts`).
 - Analysis results use a compact, versioned binary format (`core/analysis/format.ts`). The project model is versioned JSON (`PROJECT_FORMAT_VERSION`). Bump the version and add a migration whenever a shape changes.
 - Export renders offline, frame by frame, at exact timestamps `i / fps`. It must never silently drop audio, and it verifies the file it produces (`verify.ts`).
@@ -47,7 +52,7 @@ Rules:
 
 ## Development phases
 
-1. **Proof of concept (current):** import video + music, bass envelope, bass-driven zoom/displacement, preview, 10 s synchronized MP4, all validated on the S21.
+1. **Live audio-reactive editor + proof-of-concept export (current):** a real-time WebGL2 preview of the full song on the music clock, live bass/mid/treble meters, effect controls that can be adjusted live, and a verified 10 s MP4 export, all validated on the S21.
 2. Three-band engine: mid/treble display, smoothing/gain/sensitivity per band, sync checks.
 3. GPU effects library: displacement, zoom pulse, RGB split, wave, pixelate, brightness/contrast, noise/glitch. Multi-pass chain with defined order.
 4. Routing UI: any signal → any compatible parameter, with multiple connections.

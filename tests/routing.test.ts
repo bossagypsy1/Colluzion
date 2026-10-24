@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EFFECT_DEFINITIONS } from '../src/core/effects/definitions.ts';
-import { createDefaultProject, type RoutingConnection } from '../src/core/project/model.ts';
+import { migrateProject } from '../src/core/project/migrate.ts';
+import { createDefaultProject, PROJECT_FORMAT_VERSION, type RoutingConnection } from '../src/core/project/model.ts';
 import { computeFrameState, frameTimestamps, mapVideoTime } from '../src/core/render/frameState.ts';
 import { connectionContribution, evaluateRouting } from '../src/core/routing/routing.ts';
 import { isBeatMarkerOn } from '../src/core/testMedia.ts';
@@ -34,21 +35,46 @@ test('disabled connections and unknown params are ignored', () => {
   assert.equal(out.fx1!.zoom, 0);
 });
 
-test('frame state is a pure function of timestamp', () => {
+test('frame state is a pure function of music time', () => {
   const p = createDefaultProject(new Date(0));
-  p.segment.musicStart = 2;
   const sig = { id: 'bass', frameRate: 100, values: Float32Array.from({ length: 1000 }, (_, i) => (i % 50) / 50) };
-  const a = computeFrameState(p, [sig], 1.2345, 7);
-  const b = computeFrameState(p, [sig], 1.2345, 7);
+  const a = computeFrameState(p, [sig], 3.2345, 7);
+  const b = computeFrameState(p, [sig], 3.2345, 7);
   assert.deepEqual(a, b);
-  assert.ok(Math.abs(a.musicTime - 3.2345) < 1e-12);
+  assert.equal(a.musicTime, 3.2345);
+  assert.ok(Math.abs(a.signals.bass! - 0.469) < 1e-6); // between frames 323 (0.46) and 324 (0.48)
 });
 
-test('video time loops when the clip is shorter than the segment', () => {
-  const seg = { musicStart: 0, videoStart: 1, duration: 10 };
-  assert.equal(mapVideoTime(seg, 4, 0), 1);
-  assert.equal(mapVideoTime(seg, 4, 2.5), 3.5);
-  assert.equal(mapVideoTime(seg, 4, 3.5), 1.5);
+test('frame state does not depend on the order or history of evaluation', () => {
+  const p = createDefaultProject(new Date(0));
+  const sig = { id: 'bass', frameRate: 100, values: Float32Array.from({ length: 1000 }, (_, i) => Math.abs(Math.sin(i))) };
+  const forward = [1, 2, 3, 4].map((t) => computeFrameState(p, [sig], t, 7));
+  const shuffled = [3, 1, 4, 2].map((t) => computeFrameState(p, [sig], t, 7));
+  assert.deepEqual(shuffled[1], forward[0]);
+  assert.deepEqual(shuffled[0], forward[2]);
+});
+
+test('video time loops from the in-point, aligned to the sync music time', () => {
+  const clip = { inPoint: 1, syncMusicTime: 0 };
+  assert.equal(mapVideoTime(clip, 4, 0), 1);
+  assert.equal(mapVideoTime(clip, 4, 2.5), 3.5);
+  assert.equal(mapVideoTime(clip, 4, 3.5), 1.5);
+  const shifted = { inPoint: 0, syncMusicTime: 10 };
+  assert.equal(mapVideoTime(shifted, 4, 10), 0);
+  assert.equal(mapVideoTime(shifted, 4, 9), 3); // before the sync point it wraps backwards
+});
+
+test('v1 projects migrate to v2 with identical video mapping', () => {
+  const v1 = { ...createDefaultProject(new Date(0)), formatVersion: 1, segment: { musicStart: 5, videoStart: 2, duration: 8 } } as Record<string, unknown>;
+  delete v1.clip;
+  delete v1.exportRange;
+  const p = migrateProject(v1);
+  assert.equal(p.formatVersion, PROJECT_FORMAT_VERSION);
+  assert.deepEqual(p.exportRange, { start: 5, duration: 8 });
+  // v1 showed videoStart + localTime at musicStart + localTime.
+  assert.equal(mapVideoTime(p.clip, 20, 5 + 3), 2 + 3);
+  assert.equal('segment' in p, false);
+  assert.throws(() => migrateProject({ formatVersion: 99 }));
 });
 
 test('frame timestamps are exact multiples of 1/fps', () => {

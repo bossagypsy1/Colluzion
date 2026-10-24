@@ -55,7 +55,7 @@ export class WebCodecsMp4Exporter implements VideoExporter {
     const started = performance.now();
     const { project, audio } = job;
     const { width, height, fps } = project.export;
-    const { musicStart, duration } = project.segment;
+    const { start: musicStart, duration } = project.exportRange;
     const warnings: string[] = [];
 
     if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined') {
@@ -68,7 +68,7 @@ export class WebCodecsMp4Exporter implements VideoExporter {
     const audioCodec = await pickAudioCodec(audio, project.export.allowOpusFallback);
     if (audioCodec === 'opus') warnings.push('AAC encoding unavailable: audio was encoded as Opus in MP4. Some players may not support it.');
     if (musicStart + duration > audio.duration + 1e-3) {
-      warnings.push('Segment extends past the end of the music; the remainder is silent.');
+      warnings.push('Export range extends past the end of the music; the remainder is silent.');
     }
 
     const canvas = new OffscreenCanvas(width, height);
@@ -105,14 +105,16 @@ export class WebCodecsMp4Exporter implements VideoExporter {
 
     try {
       await output.start();
-      const videoTimes = times.map((t) => computeFrameState(project, job.signals, t, job.videoDuration).videoTime);
+      // Same evaluation as the live preview, at music time = range start + i / fps.
+      const states = times.map((t) => computeFrameState(project, job.signals, musicStart + t, job.videoDuration));
+      const videoTimes = states.map((s) => s.videoTime);
       let i = 0;
       for await (const src of job.frameSource.frames(videoTimes)) {
         if (job.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
         const t = times[i]!;
         await feedAudioUntil(t + 1);
         if (src) renderer.setSource(src);
-        renderer.render(computeFrameState(project, job.signals, t, job.videoDuration));
+        renderer.render(states[i]!);
         await videoSource.add(t, 1 / fps);
         i++;
         job.onProgress(i / times.length, `Frame ${i} / ${times.length}`);
