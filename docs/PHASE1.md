@@ -50,4 +50,10 @@ Live preview (headless Chromium, 412×915 viewport):
 - Real WAV + MP4: video drift settles to within ±8 ms within 2 s.
 - Export after the redesign: still VERIFIED, with sync worst 0.8 ms.
 
-**Nothing has been tested on the Galaxy S21 yet, live preview or MP4 export.**
+## Galaxy S21 results
+
+Chrome 155, Android (UA reports "Android 10; K", which is Chrome's reduced UA string), build `77e70da`, 2026-10-24:
+- **A1 Device check:** WebGL2, VideoEncoder/AudioEncoder/VideoDecoder and OffscreenCanvas all present. H.264 at 640×360, 1280×720 and 1920×1080: `true`. `aac48k` / `aac44k` / `opus48k`: `true`. Share files: `true`. Device memory: 8 GB.
+- **L1 Live preview (test media):** 640×360 at 60 fps, 0.5–0.6 ms main-thread time per frame. B/M/T meters track the beat. Analysis of 30 s took 224 ms.
+
+**Not yet tested on the S21:** L2–L8, own media, and every export test (A2–A10). MP4 export on the S21 is still unverified.
