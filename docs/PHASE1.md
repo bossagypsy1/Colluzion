@@ -56,4 +56,6 @@ Chrome 155, Android (UA reports "Android 10; K", which is Chrome's reduced UA st
 - **A1 Device check:** WebGL2, VideoEncoder/AudioEncoder/VideoDecoder and OffscreenCanvas all present. H.264 at 640×360, 1280×720 and 1920×1080: `true`. `aac48k` / `aac44k` / `opus48k`: `true`. Share files: `true`. Device memory: 8 GB.
 - **L1 Live preview (test media):** 640×360 at 60 fps, 0.5–0.6 ms main-thread time per frame. B/M/T meters track the beat. Analysis of 30 s took 224 ms.
 
+- **A3 export (test media, 640×360 @ 30 fps), first attempt, build `77e70da`:** 300 frames, H.264 (`avc1.64001e`) + AAC (`mp4a.40.2`), 10.000 s video, 1.48 MB, rendered in 6.8 s (1.47× real time). **Failed the sync check:** audio was a constant 42.7 ms late on all 20 beats. Cause: the Android AAC encoder adds 2048 samples of priming (2048 / 48 000 = 42.7 ms) without reflecting it in its timestamps. Fix: measure the encoder delay on the device before each export, then start the audio track at −delay so the MP4 edit list trims the priming. In headless Chromium, forcing a 2048-sample compensation shifted measured sync by exactly 42.7 ms. **Re-test on the S21 pending.**
+
 **Not yet tested on the S21:** L2–L8, own media, and every export test (A2–A10). MP4 export on the S21 is still unverified.

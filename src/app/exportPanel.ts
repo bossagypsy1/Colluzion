@@ -112,6 +112,7 @@ async function runExport(player: LivePlayer): Promise<void> {
       `${w}×${h} @ ${project.export.fps} fps, ${result.durationSec} s, ${(result.blob.size / 1024 / 1024).toFixed(2)} MB`,
       `Codecs: ${result.videoCodec} / ${result.audioCodec}`,
       `Render time: ${(result.elapsedMs / 1000).toFixed(1)} s`,
+      `Audio encoder delay compensated: ${(result.audioDelayCompensation * 1000).toFixed(1)} ms`,
       ...result.warnings.map((x) => `WARN: ${x}`),
     ];
     ui.report.textContent = [...header, '', ...report.lines, '', navigator.userAgent].join('\n');

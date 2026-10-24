@@ -50,8 +50,12 @@ export async function verifyMp4(blob: Blob, expect: VerifyExpectations): Promise
     );
     const aFirst = await audio.getFirstTimestamp();
     const vFirst = await video.getFirstTimestamp();
-    (Math.abs(aFirst - vFirst) <= 0.03 ? pass : fail)(
-      `Track start offset ${((aFirst - vFirst) * 1000).toFixed(1)} ms (video ${vFirst.toFixed(3)} s, audio ${aFirst.toFixed(3)} s)`,
+    // Audio may start before the video: that is encoder priming, trimmed by the edit list.
+    // Audio starting after the video would leave the first frames silent.
+    const startOffset = aFirst - vFirst;
+    (startOffset <= 0.03 && startOffset >= -0.25 ? pass : fail)(
+      `Track start offset ${(startOffset * 1000).toFixed(1)} ms (video ${vFirst.toFixed(3)} s, audio ${aFirst.toFixed(3)} s` +
+        (startOffset < -0.001 ? ', priming trimmed by edit list)' : ')'),
     );
 
     if (expect.testMediaSync) {

@@ -18,6 +18,7 @@ import {
 import type { ControlSignal } from '../../core/analysis/envelope.ts';
 import type { Project } from '../../core/project/model.ts';
 import { computeFrameState, frameTimestamps } from '../../core/render/frameState.ts';
+import { measureAudioEncoderDelay } from './audioCalibration.ts';
 import { errorMessage, type FrameSource } from './frameSources.ts';
 import { GlRenderer } from './renderer.ts';
 
@@ -38,6 +39,8 @@ export interface ExportResult {
   frames: number;
   durationSec: number;
   elapsedMs: number;
+  /** Measured audio encoder priming delay that was trimmed via the MP4 edit list, seconds. */
+  audioDelayCompensation: number;
   warnings: string[];
 }
 
@@ -70,6 +73,13 @@ export class WebCodecsMp4Exporter implements VideoExporter {
     if (musicStart + duration > audio.duration + 1e-3) {
       warnings.push('Export range extends past the end of the music; the remainder is silent.');
     }
+    job.onProgress(0, 'Calibrating audio encoder…');
+    let audioDelay = 0;
+    try {
+      audioDelay = await measureAudioEncoderDelay(audioCodec, audio.sampleRate, audio.numberOfChannels);
+    } catch (e) {
+      warnings.push(`Audio encoder calibration failed (${errorMessage(e)}); audio may be offset.`);
+    }
 
     const canvas = new OffscreenCanvas(width, height);
     const renderer = new GlRenderer(canvas, { preserveDrawingBuffer: true });
@@ -84,7 +94,11 @@ export class WebCodecsMp4Exporter implements VideoExporter {
       keyFrameInterval: 1,
       onEncoderConfig: (c) => { videoCodecString = c.codec; },
     });
-    const audioSource = new AudioBufferSource({ codec: audioCodec, quality: new Quality('high') });
+    // Starting at -delay makes the muxer write an edit list that trims the encoder's priming.
+    const audioSource = new AudioBufferSource(
+      { codec: audioCodec, quality: new Quality('high') },
+      { startTimestamp: -audioDelay },
+    );
     output.addVideoTrack(videoSource, { frameRate: fps });
     output.addAudioTrack(audioSource);
 
@@ -139,6 +153,7 @@ export class WebCodecsMp4Exporter implements VideoExporter {
       frames: times.length,
       durationSec: duration,
       elapsedMs: performance.now() - started,
+      audioDelayCompensation: audioDelay,
       warnings,
     };
   }
