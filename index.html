@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111418" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <title>Colluzion</title>
+  </head>
+  <body>
+    <header>
+      <strong>Colluzion</strong> <span class="muted">Phase 1 proof of concept · <span id="build"></span></span>
+    </header>
+
+    <section id="preview-wrap">
+      <canvas id="preview" width="640" height="360"></canvas>
+      <div class="row">
+        <button id="play" class="big" disabled>Play</button>
+        <span id="time" class="mono">0.00 / 0.00</span>
+      </div>
+      <input id="seek" type="range" min="0" max="10" step="0.01" value="0" disabled />
+    </section>
+
+    <section>
+      <h2>1 · Media</h2>
+      <label class="file big">Choose music<input id="audio-file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" /></label>
+      <label class="file big">Choose video<input id="video-file" type="file" accept="video/*" /></label>
+      <button id="test-media" class="big secondary">Use built-in test media</button>
+      <p id="audio-info" class="muted">No music loaded.</p>
+      <p id="video-info" class="muted">No video loaded.</p>
+    </section>
+
+    <section>
+      <h2>2 · Segment</h2>
+      <div class="grid">
+        <label>Music start (s)<input id="music-start" type="number" min="0" step="0.1" value="0" inputmode="decimal" /></label>
+        <label>Video start (s)<input id="video-start" type="number" min="0" step="0.1" value="0" inputmode="decimal" /></label>
+        <label>Length (s)<input id="duration" type="number" min="1" max="60" step="1" value="10" inputmode="decimal" /></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>3 · Bass envelope</h2>
+      <p id="analysis-info" class="muted">Load music to analyse.</p>
+      <canvas id="envelope" height="120"></canvas>
+      <label>Attack <span id="attack-val"></span><input id="attack" type="range" min="0" max="100" step="1" /></label>
+      <label>Release <span id="release-val"></span><input id="release" type="range" min="10" max="1000" step="10" /></label>
+      <label>Gain <span id="gain-val"></span><input id="gain" type="range" min="0.1" max="4" step="0.05" /></label>
+      <label>Threshold <span id="threshold-val"></span><input id="threshold" type="range" min="0" max="0.9" step="0.01" /></label>
+    </section>
+
+    <section>
+      <h2>4 · Bass → effect</h2>
+      <label>Bass → zoom amount <span id="zoom-val"></span><input id="zoom-amt" type="range" min="0" max="1" step="0.01" /></label>
+      <label>Bass → horizontal displacement <span id="disp-val"></span><input id="disp-amt" type="range" min="0" max="0.3" step="0.005" /></label>
+    </section>
+
+    <section>
+      <h2>5 · Export MP4</h2>
+      <div class="grid">
+        <label>Resolution
+          <select id="resolution">
+            <option value="640x360">640 × 360</option>
+            <option value="1280x720">1280 × 720</option>
+            <option value="1920x1080">1920 × 1080</option>
+          </select>
+        </label>
+        <label>Frame rate
+          <select id="fps">
+            <option value="30">30 fps</option>
+            <option value="24">24 fps</option>
+          </select>
+        </label>
+      </div>
+      <label class="check"><input id="opus-fallback" type="checkbox" /> Allow Opus audio if AAC is unavailable</label>
+      <div class="row">
+        <button id="export" class="big" disabled>Export MP4</button>
+        <button id="cancel" class="big secondary" hidden>Cancel</button>
+      </div>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <p id="export-status" class="muted"></p>
+      <pre id="report" hidden></pre>
+      <div id="result" hidden>
+        <video id="result-video" controls playsinline></video>
+        <div class="row">
+          <a id="download" class="button big">Download MP4</a>
+          <button id="share" class="big secondary" hidden>Share / save…</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Device check</h2>
+      <button id="probe" class="big secondary">Check encoders on this device</button>
+      <pre id="caps" hidden></pre>
+    </section>
+
+    <section>
+      <h2>Log</h2>
+      <pre id="log"></pre>
+    </section>
+
+    <script type="module" src="./src/app/main.ts"></script>
+  </body>
+</html>
