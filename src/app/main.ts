@@ -63,6 +63,7 @@ window.addEventListener('unhandledrejection', (e) => log(`Error: ${errorMessage(
 const meters = ['bass', 'mid', 'treble'].map((id) => ({ id, bar: $(`m-${id}`), val: $(`v-${id}`), last: NaN }));
 const envelopeView = new EnvelopeView(ui.envelope);
 let lastSeekUpdate = 0;
+const statsAcc = { cpu: 0, drift: 0, n: 0, since: 0 };
 let seekDragging = false;
 let resumeAfterSeek = false;
 
@@ -84,8 +85,17 @@ const player = new LivePlayer(new GlRenderer(ui.preview), ui.sourceVideo, {
     }
     updateEffectReadouts(frame);
     envelopeView.draw(frame.musicTime);
-    const drift = playing && state.videoFile ? ` · video drift ${stats.driftMs.toFixed(0)} ms` : '';
-    ui.stats.textContent = `${ui.preview.width}×${ui.preview.height} · ${stats.fps.toFixed(0)} fps · ${stats.cpuMs.toFixed(1)} ms/frame${drift}`;
+    // Average over half a second and refresh the text twice a second so it is readable.
+    statsAcc.cpu += stats.cpuMs;
+    statsAcc.drift += stats.driftMs;
+    statsAcc.n++;
+    if (now - statsAcc.since >= 500) {
+      const cpu = statsAcc.cpu / statsAcc.n;
+      const drift = playing && state.videoFile ? ` · video drift ${Math.round(statsAcc.drift / statsAcc.n)} ms` : '';
+      ui.stats.textContent = `${ui.preview.width}×${ui.preview.height} · ${Math.round(stats.fps)} fps · ${cpu.toFixed(1)} ms/frame${drift}`;
+      statsAcc.cpu = statsAcc.drift = statsAcc.n = 0;
+      statsAcc.since = now;
+    }
   },
   onStateChange: (playing) => {
     ui.play.textContent = playing ? 'Pause' : 'Play';
