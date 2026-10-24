@@ -59,4 +59,8 @@ Chrome 155, Android (UA reports "Android 10; K", which is Chrome's reduced UA st
 - **A3 export (test media, 640×360 @ 30 fps), first attempt, build `77e70da`:** 300 frames, H.264 (`avc1.64001e`) + AAC (`mp4a.40.2`), 10.000 s video, 1.48 MB, rendered in 6.8 s (1.47× real time). **Failed the sync check:** audio was a constant 42.7 ms late on all 20 beats. Cause: the Android AAC encoder adds 2048 samples of priming (2048 / 48 000 = 42.7 ms) without reflecting it in its timestamps. Fix: measure the encoder delay on the device before each export, then start the audio track at −delay so the MP4 edit list trims the priming. In headless Chromium, forcing a 2048-sample compensation shifted measured sync by exactly 42.7 ms. 
 - **A3 export, re-test with build `1dfa3ff`: VERIFIED.** Encoder delay measured on the device: 42.7 ms, compensated. Track start offset −42.7 ms (priming trimmed by the edit list). **A/V sync over 20 beats: mean 0.0 ms, worst 0.0 ms.** 300 frames, video 10.000 s, audio 9.984 s, H.264 + AAC, 1.48 MB, rendered in 6.3 s (1.60× real time).
 
-**Not yet tested on the S21:** L2–L8, A4–A10 (including playback of the saved file in Gallery / Google Photos, A5), and own music + footage. In-app verification passed, but playback in an external player is still unconfirmed.
+- **A5:** the exported file was saved and plays in Samsung Gallery with sound, in sync (confirmed by the owner).
+
+**Phase 1 milestone reached on the S21:** a real MP4 with music and a visibly bass-reactive effect, produced entirely on the phone.
+
+**Not yet tested on the S21:** L2–L8, A4, A6–A10, and own music + footage.
